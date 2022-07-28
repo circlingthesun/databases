@@ -6,6 +6,7 @@ import typing
 from contextvars import ContextVar
 from types import TracebackType
 from urllib.parse import SplitResult, parse_qsl, unquote, urlsplit
+from iso3166 import TypeVar
 
 from sqlalchemy import text
 from sqlalchemy.sql import ClauseElement
@@ -34,8 +35,10 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger("databases")
 
+RecordType = TypeVar("RecordType")
 
-class Database:
+
+class Database(typing.Generic[RecordType]):
     SUPPORTED_BACKENDS = {
         "postgresql": "databases.backends.postgres:PostgresBackend",
         "postgresql+aiopg": "databases.backends.aiopg:AiopgBackend",
@@ -137,13 +140,13 @@ class Database:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[Record]:
+    ) -> typing.List[RecordType]:
         async with self.connection() as connection:
             return await connection.fetch_all(query, values)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[Record]:
+    ) -> typing.Optional[RecordType]:
         async with self.connection() as connection:
             return await connection.fetch_one(query, values)
 
@@ -206,7 +209,7 @@ class Database:
         )
 
 
-class Connection:
+class Connection(typing.Generic[RecordType]):
     def __init__(self, backend: DatabaseBackend) -> None:
         self._backend = backend
 
@@ -244,14 +247,14 @@ class Connection:
 
     async def fetch_all(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.List[Record]:
+    ) -> typing.List[RecordType]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_all(built_query)
 
     async def fetch_one(
         self, query: typing.Union[ClauseElement, str], values: dict = None
-    ) -> typing.Optional[Record]:
+    ) -> typing.Optional[RecordType]:
         built_query = self._build_query(query, values)
         async with self._query_lock:
             return await self._connection.fetch_one(built_query)
